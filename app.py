@@ -37,7 +37,7 @@ def process_records():
 
     for record in records:
         record_id = record["id"]
-        file_url = record["fields"]["Application File"][0]["url"]
+        file_url = record["fields"]["Upload Application"][0]["url"]
 
         file_response = requests.get(file_url)
         file_bytes = file_response.content
