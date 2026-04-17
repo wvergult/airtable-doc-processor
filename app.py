@@ -60,11 +60,14 @@ def process_records():
 
             update_url = f"{url}/{record_id}"
 
-            requests.patch(update_url, headers=HEADERS, json={
-                "fields": {
-                    "Raw Extracted Text": text
-                }
-            })
+            update_response = requests.patch(update_url, headers=HEADERS, json={
+            "fields": {
+                "Raw Extracted Text": text
+            }
+        })
+
+        print("PATCH status:", update_response.status_code)
+        print("PATCH response:", update_response.text)
 
             print(f"Processed record {record_id}")
 
