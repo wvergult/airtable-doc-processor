@@ -1,9 +1,13 @@
 import os
 import io
 import time
+import threading
 import requests
+from flask import Flask
 from docx import Document
 import pdfplumber
+
+app = Flask(__name__)
 
 AIRTABLE_TOKEN = os.environ.get("AIRTABLE_TOKEN")
 BASE_ID = os.environ.get("BASE_ID")
@@ -29,7 +33,6 @@ def extract_pdf(file_bytes):
 
 def process_records():
     url = f"https://api.airtable.com/v0/{BASE_ID}/{TABLE_NAME}"
-
     formula = "AND({Upload Application} != '', {Raw Extracted Text} = '')"
 
     response = requests.get(url, headers=HEADERS, params={"filterByFormula": formula})
@@ -59,7 +62,19 @@ def process_records():
 
         print(f"Processed record {record_id}")
 
-if __name__ == "__main__":
+def polling_loop():
     while True:
         process_records()
         time.sleep(60)
+
+@app.route("/")
+def home():
+    return "Service is running."
+
+if __name__ == "__main__":
+    thread = threading.Thread(target=polling_loop)
+    thread.daemon = True
+    thread.start()
+
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
