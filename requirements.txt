@@ -3,3 +3,6 @@ requests
 python-docx
 pdfplumber
 gunicorn
+flask
+requests
+pdfminer.six
