@@ -1,15 +1,18 @@
 import os
 import io
+import time
 import requests
-from flask import Flask, request, jsonify
 from docx import Document
 import pdfplumber
-
-app = Flask(__name__)
 
 AIRTABLE_TOKEN = os.environ.get("AIRTABLE_TOKEN")
 BASE_ID = os.environ.get("BASE_ID")
 TABLE_NAME = os.environ.get("TABLE_NAME")
+
+HEADERS = {
+    "Authorization": f"Bearer {AIRTABLE_TOKEN}",
+    "Content-Type": "application/json"
+}
 
 def extract_docx(file_bytes):
     document = Document(io.BytesIO(file_bytes))
@@ -24,36 +27,39 @@ def extract_pdf(file_bytes):
                 text += extracted + "\n"
     return text
 
-@app.route("/process", methods=["POST"])
-def process():
-    data = request.json
-    record_id = data["record_id"]
-    file_url = data["file_url"]
+def process_records():
+    url = f"https://api.airtable.com/v0/{BASE_ID}/{TABLE_NAME}"
 
-    file_response = requests.get(file_url)
-    file_bytes = file_response.content
+    formula = "AND({Application File} != '', {Raw Extracted Text} = '')"
 
-    if file_url.endswith(".docx"):
-        text = extract_docx(file_bytes)
-    elif file_url.endswith(".pdf"):
-        text = extract_pdf(file_bytes)
-    else:
-        return jsonify({"error": "Unsupported file type"}), 400
+    response = requests.get(url, headers=HEADERS, params={"filterByFormula": formula})
+    records = response.json().get("records", [])
 
-    url = f"https://api.airtable.com/v0/{BASE_ID}/{TABLE_NAME}/{record_id}"
+    for record in records:
+        record_id = record["id"]
+        file_url = record["fields"]["Application File"][0]["url"]
 
-    headers = {
-        "Authorization": f"Bearer {AIRTABLE_TOKEN}",
-        "Content-Type": "application/json"
-    }
+        file_response = requests.get(file_url)
+        file_bytes = file_response.content
 
-    requests.patch(url, headers=headers, json={
-        "fields": {
-            "Raw Extracted Text": text
-        }
-    })
+        if file_url.endswith(".docx"):
+            text = extract_docx(file_bytes)
+        elif file_url.endswith(".pdf"):
+            text = extract_pdf(file_bytes)
+        else:
+            continue
 
-    return jsonify({"status": "success"})
+        update_url = f"{url}/{record_id}"
+
+        requests.patch(update_url, headers=HEADERS, json={
+            "fields": {
+                "Raw Extracted Text": text
+            }
+        })
+
+        print(f"Processed record {record_id}")
 
 if __name__ == "__main__":
-    app.run()
+    while True:
+        process_records()
+        time.sleep(60)
