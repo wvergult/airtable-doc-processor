@@ -30,7 +30,7 @@ def extract_pdf(file_bytes):
 def process_records():
     url = f"https://api.airtable.com/v0/{BASE_ID}/{TABLE_NAME}"
 
-    formula = "AND({Application File} != '', {Raw Extracted Text} = '')"
+    formula = "AND({Upload Application} != '', {Raw Extracted Text} = '')"
 
     response = requests.get(url, headers=HEADERS, params={"filterByFormula": formula})
     records = response.json().get("records", [])
